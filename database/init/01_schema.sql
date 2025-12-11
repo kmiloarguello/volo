@@ -301,3 +301,92 @@ JOIN regions r ON p.region_id = r.id
 LEFT JOIN attendances att ON act.id = att.activity_id
 GROUP BY act.id, act.starts_at, act.ends_at, act.location, act.capacity, act.status, 
          p.name, o.name, r.name;
+
+-- ===== PROFILE AGGREGATION TRIGGERS =====
+
+-- Function to recalculate profile totals
+CREATE OR REPLACE FUNCTION update_profile_totals(volunteer_uuid UUID)
+RETURNS void AS $$
+BEGIN
+    UPDATE profiles SET
+        total_hours = COALESCE((
+            SELECT SUM(
+                CASE 
+                    WHEN a.check_in_at IS NOT NULL AND a.check_out_at IS NOT NULL 
+                    THEN EXTRACT(EPOCH FROM (a.check_out_at - a.check_in_at)) / 3600.0
+                    ELSE 0
+                END
+            )
+            FROM attendances a 
+            WHERE a.volunteer_id = volunteer_uuid AND a.status = 'Verified'
+        ), 0),
+        total_credits_earned = COALESCE((
+            SELECT SUM(amount)
+            FROM volo_credits vc
+            WHERE vc.volunteer_id = volunteer_uuid
+        ), 0),
+        total_credits_allocated = COALESCE((
+            SELECT SUM(amount)
+            FROM allocations al
+            WHERE al.volunteer_id = volunteer_uuid
+        ), 0),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE volunteer_id = volunteer_uuid;
+END;
+$$ language 'plpgsql';
+
+-- Trigger function for attendance changes
+CREATE OR REPLACE FUNCTION trigger_update_profile_on_attendance()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Handle both INSERT/UPDATE and DELETE cases
+    IF TG_OP = 'DELETE' THEN
+        PERFORM update_profile_totals(OLD.volunteer_id);
+        RETURN OLD;
+    ELSE
+        PERFORM update_profile_totals(NEW.volunteer_id);
+        RETURN NEW;
+    END IF;
+END;
+$$ language 'plpgsql';
+
+-- Trigger function for volo_credits changes
+CREATE OR REPLACE FUNCTION trigger_update_profile_on_credits()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        PERFORM update_profile_totals(OLD.volunteer_id);
+        RETURN OLD;
+    ELSE
+        PERFORM update_profile_totals(NEW.volunteer_id);
+        RETURN NEW;
+    END IF;
+END;
+$$ language 'plpgsql';
+
+-- Trigger function for allocations changes
+CREATE OR REPLACE FUNCTION trigger_update_profile_on_allocations()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        PERFORM update_profile_totals(OLD.volunteer_id);
+        RETURN OLD;
+    ELSE
+        PERFORM update_profile_totals(NEW.volunteer_id);
+        RETURN NEW;
+    END IF;
+END;
+$$ language 'plpgsql';
+
+-- Create triggers for automatic profile updates
+CREATE TRIGGER update_profile_on_attendance_change
+    AFTER INSERT OR UPDATE OR DELETE ON attendances
+    FOR EACH ROW EXECUTE FUNCTION trigger_update_profile_on_attendance();
+
+CREATE TRIGGER update_profile_on_credits_change
+    AFTER INSERT OR UPDATE OR DELETE ON volo_credits
+    FOR EACH ROW EXECUTE FUNCTION trigger_update_profile_on_credits();
+
+CREATE TRIGGER update_profile_on_allocations_change
+    AFTER INSERT OR UPDATE OR DELETE ON allocations
+    FOR EACH ROW EXECUTE FUNCTION trigger_update_profile_on_allocations();

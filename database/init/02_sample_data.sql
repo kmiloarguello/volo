@@ -285,3 +285,14 @@ INSERT INTO ledger_entries (id, ref_type, ref_id, hash, prev_hash) VALUES
 -- - Multi-region and multi-organization scenarios
 -- - Partnership and branding integrations
 -- - Audit trail and compliance tracking
+
+-- ===== PROFILE INITIALIZATION =====
+-- Update all volunteer profiles with calculated totals after sample data is loaded
+DO $$
+DECLARE
+    vol_id UUID;
+BEGIN
+    FOR vol_id IN SELECT id FROM volunteers LOOP
+        PERFORM update_profile_totals(vol_id);
+    END LOOP;
+END $$;
