@@ -41,7 +41,8 @@ async def root():
 async def health_check(db: Session = Depends(get_db)):
     try:
         # Simple database connection test
-        db.execute("SELECT 1")
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Database connection failed: {str(e)}")
