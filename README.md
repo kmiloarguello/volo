@@ -2,6 +2,10 @@
 
 A comprehensive volunteer management system with credit allocation, built with PostgreSQL, Docker, and FastAPI.
 
+> **🐳 Docker-First Project**: This project runs entirely in Docker. No need to install Python, PostgreSQL, or any dependencies locally!
+> 
+> Quick start: `docker compose up -d` (see [Docker Quick Reference Guide](DOCKER_GUIDE.md) for more commands)
+
 ## Overview
 
 Volo is a volunteer engagement platform that tracks volunteer activities, grants credits for verified participation, and allows volunteers to allocate credits to projects they care about. The system implements a 50/50 allocation rule where volunteers must allocate 50% of their credits to the project they worked on (mandatory) and can freely allocate the remaining 50% to any project in their region.
