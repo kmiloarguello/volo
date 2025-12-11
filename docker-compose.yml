@@ -69,6 +69,28 @@ services:
     depends_on:
       - postgres
 
+  scripts:
+    build: ./scripts
+    container_name: volo_scripts
+    environment:
+      API_BASE_URL: http://fastapi:8000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: volo_db
+      DB_USER: volo_user
+      DB_PASSWORD: volo_password
+    volumes:
+      - ./scripts:/app
+    networks:
+      - volo_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      fastapi:
+        condition: service_started
+    # Keep container running so we can exec into it
+    command: tail -f /dev/null
+
 volumes:
   postgres_data:
   pgadmin_data:
