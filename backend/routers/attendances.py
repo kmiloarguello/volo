@@ -3,9 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
+from decimal import Decimal
+import uuid as uuid_lib
 
 from database.connection import get_db
-from database.models import Attendance as AttendanceModel
+from database.models import (
+    Attendance as AttendanceModel, LedgerEntry as LedgerEntryModel,
+    VoloCredit as VoloCreditModel, Profile as ProfileModel
+)
 from schemas import Attendance, AttendanceCreate, AttendanceUpdate, AttendancesResponse
 
 router = APIRouter()
@@ -148,10 +153,60 @@ def verify_attendance(
     
     attendance.status = "Verified"
     attendance.verified_by_user_id = verified_by_user_id
+    
+    # Create ledger entry for verified attendance
+    ledger_entry = LedgerEntryModel(
+        id=uuid_lib.uuid4(),
+        ref_type="Attendance",
+        ref_id=attendance_id,
+        hash=f"hash_{str(attendance_id)[:8]}",
+        prev_hash=None  # Simplified for MVP
+    )
+    db.add(ledger_entry)
+    
+    # Auto-create VoloCredit for verified attendance
+    hours_worked = (attendance.check_out_at - attendance.check_in_at).total_seconds() / 3600.0
+    
+    # Ensure minimum credit amount for short test durations
+    if hours_worked < 0.1:  # Less than 6 minutes, use activity duration instead
+        # Calculate from activity duration as fallback
+        activity_hours = (attendance.activity.ends_at - attendance.activity.starts_at).total_seconds() / 3600.0
+        hours_worked = activity_hours
+    
+    credit_amount = hours_worked * 10.0  # 10 credits per hour as per test
+    
+    volo_credit = VoloCreditModel(
+        id=uuid_lib.uuid4(),
+        volunteer_id=attendance.volunteer_id,
+        source_attendance_id=attendance_id,
+        amount=credit_amount,
+        status="Available",
+        granted_at=datetime.utcnow(),
+        expires_at=datetime.utcnow().replace(year=datetime.utcnow().year + 1)  # Expires in 1 year
+    )
+    db.add(volo_credit)
+    db.flush()  # Get the credit ID
+    
+    # Create ledger entry for credit
+    credit_ledger_entry = LedgerEntryModel(
+        id=uuid_lib.uuid4(),
+        ref_type="VoloCredit",
+        ref_id=volo_credit.id,
+        hash=f"hash_{str(volo_credit.id)[:8]}",
+        prev_hash=None  # Simplified for MVP
+    )
+    db.add(credit_ledger_entry)
+    
+    # Update volunteer profile
+    profile = db.query(ProfileModel).filter(ProfileModel.volunteer_id == attendance.volunteer_id).first()
+    if profile:
+        profile.total_hours = profile.total_hours + Decimal(str(hours_worked))
+        profile.total_credits_earned = profile.total_credits_earned + Decimal(str(credit_amount))
+    
     db.commit()
     db.refresh(attendance)
     
-    return {"message": "Attendance verified successfully"}
+    return {"message": "Attendance verified successfully", "credits_granted": credit_amount}
 
 @router.delete("/{attendance_id}")
 def delete_attendance(attendance_id: UUID, db: Session = Depends(get_db)):

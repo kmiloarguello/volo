@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -24,6 +25,14 @@ def create_volunteer(
     
     db_volunteer = VolunteerModel(**volunteer.model_dump())
     db.add(db_volunteer)
+    db.flush()  # Flush to get the volunteer ID
+    
+    # Create associated profile if it doesn't exist
+    existing_profile = db.query(ProfileModel).filter(ProfileModel.volunteer_id == db_volunteer.id).first()
+    if not existing_profile:
+        db_profile = ProfileModel(volunteer_id=db_volunteer.id)
+        db.add(db_profile)
+    
     db.commit()
     db.refresh(db_volunteer)
     return db_volunteer
@@ -94,14 +103,15 @@ def read_volunteer_profile(volunteer_id: UUID, db: Session = Depends(get_db)):
 
 @router.get("/{volunteer_id}/dashboard", response_model=ImpactDashboard)
 def read_volunteer_dashboard(volunteer_id: UUID, db: Session = Depends(get_db)):
+    
     # Use the impact_dashboard view
     result = db.execute(
-        """
+        text("""
         SELECT volunteer_id, volunteer_name, total_hours, total_credits_earned, 
                total_credits_allocated, projects_supported, region_name
         FROM impact_dashboard 
         WHERE volunteer_id = :volunteer_id
-        """,
+        """),
         {"volunteer_id": volunteer_id}
     ).first()
     

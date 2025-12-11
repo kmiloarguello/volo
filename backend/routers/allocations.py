@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from decimal import Decimal
+from database.models import LedgerEntry as LedgerEntryModel
+import uuid as uuid_lib
 
 from database.connection import get_db
-from database.models import Allocation as AllocationModel, VoloCredit as VoloCreditModel
+from database.models import (
+    Allocation as AllocationModel, VoloCredit as VoloCreditModel,
+    Profile as ProfileModel
+)
 from schemas import Allocation, AllocationCreate, AllocationUpdate
 
 router = APIRouter()
@@ -21,19 +27,49 @@ def create_allocation(
         if not credit:
             raise HTTPException(status_code=404, detail="Source credit not found")
         
-        if credit.status != "Available":
-            raise HTTPException(status_code=400, detail="Credit is not available for allocation")
-        
         # Check if volunteer owns the credit
         if credit.volunteer_id != allocation.volunteer_id:
             raise HTTPException(status_code=400, detail="Credit does not belong to this volunteer")
+            
+        # Check if credit has been fully allocated
+        total_allocated = db.query(func.sum(AllocationModel.amount)).filter(
+            AllocationModel.source_credit_id == allocation.source_credit_id
+        ).scalar() or 0
+        
+        remaining_balance = float(credit.amount) - float(total_allocated)
+        if float(allocation.amount) > remaining_balance:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient credit balance. Available: {remaining_balance}, Requested: {allocation.amount}"
+            )
     
     db_allocation = AllocationModel(**allocation.model_dump())
     db.add(db_allocation)
+    db.flush()  # Flush to get the allocation ID
     
-    # Update credit status if specified
+    # Create ledger entry for allocation
+    ledger_entry = LedgerEntryModel(
+        id=uuid_lib.uuid4(),
+        ref_type="Allocation",
+        ref_id=db_allocation.id,
+        hash=f"hash_{str(db_allocation.id)[:8]}",
+        prev_hash=None  # Simplified for MVP
+    )
+    db.add(ledger_entry)
+    
+    # Update credit status if fully allocated
     if allocation.source_credit_id:
-        credit.status = "Allocated"
+        total_allocated = db.query(func.sum(AllocationModel.amount)).filter(
+            AllocationModel.source_credit_id == allocation.source_credit_id
+        ).scalar() or 0
+        
+        if float(total_allocated) >= float(credit.amount):
+            credit.status = "Allocated"
+    
+    # Update volunteer profile
+    profile = db.query(ProfileModel).filter(ProfileModel.volunteer_id == allocation.volunteer_id).first()
+    if profile:
+        profile.total_credits_allocated = profile.total_credits_allocated + Decimal(str(allocation.amount))
     
     db.commit()
     db.refresh(db_allocation)
