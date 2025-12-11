@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: volo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: volo_db
+      POSTGRES_USER: volo_user
+      POSTGRES_PASSWORD: volo_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/scripts:/scripts
+    networks:
+      - volo_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U volo_user -d volo_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer
+    container_name: volo_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - volo_network
+    depends_on:
+      - postgres
+
+  fastapi:
+    build: ./backend
+    container_name: volo_fastapi
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://volo_user:volo_password@postgres:5432/volo_db
+      PYTHONPATH: /app
+    volumes:
+      - ./backend:/app
+    networks:
+      - volo_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+
+networks:
+  volo_network:
+    driver: bridge
