@@ -232,6 +232,54 @@ docker compose exec <service-name> bash
 docker compose run --rm scripts python test_basic_api.py
 ```
 
+## Production Considerations
+
+### SSL Certificate Handling
+
+The current Dockerfiles use `--trusted-host` flags to handle SSL certificate issues in development environments. For production:
+
+1. **Remove the trusted-host flags** from Dockerfiles
+2. **Configure proper SSL certificates** in your build environment
+3. **Use a private PyPI mirror** if working in a corporate network
+4. **Add corporate certificate bundle** to the Docker image if needed
+
+Example production Dockerfile (backend):
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y gcc postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+# Production: Use standard pip install without --trusted-host
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### Multi-stage Builds
+
+For smaller production images, consider multi-stage builds:
+
+```dockerfile
+# Build stage
+FROM python:3.11-slim as builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Runtime stage
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
 ## Environment Variables
 
 The project uses environment variables defined in `docker-compose.yml`. To customize:

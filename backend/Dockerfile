@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first (for better caching)
 COPY requirements.txt .
 
-# Install Python dependencies (with trusted host to handle SSL issues in restricted environments)
+# Install Python dependencies
+# Note: --trusted-host flags are used for environments with SSL certificate issues.
+# For production, remove these flags and ensure proper SSL certificates are configured.
 RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
 # Copy application code
