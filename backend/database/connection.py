@@ -1,17 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
-from urllib.parse import quote_plus
+from config import settings
 
-# Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://volo_user:volo_password@localhost:5432/volo_db"
-)
+# Database configuration from settings
+DATABASE_URL = settings.get_database_url()
 
-# Create engine
-engine = create_engine(DATABASE_URL, echo=True)  # Set echo=False in production
+# Create engine with configurable echo setting
+engine = create_engine(DATABASE_URL, echo=settings.db_echo)
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
