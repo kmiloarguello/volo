@@ -5,8 +5,9 @@ Simple API test to verify endpoints are working before running architecture test
 
 import requests
 import json
+import os
 
-API_BASE_URL = 'http://localhost:8000'
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
 def test_api_health():
     """Test the health endpoint"""
