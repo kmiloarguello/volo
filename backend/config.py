@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     postgres_db: str = "volo_db"
     postgres_user: str = "volo_user"
     postgres_password: str = "volo_password"
-    postgres_host: str = "localhost"
+    postgres_host: str = "postgres"  # 'postgres' for Docker, 'localhost' for local dev
     postgres_port: int = 5432
     
     # Database URL (can be set directly or constructed from parts)
