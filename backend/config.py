@@ -3,7 +3,7 @@ Configuration module for the Volo application.
 Loads all environment variables using pydantic-settings.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     
     # Database URL (can be set directly or constructed from parts)
-    database_url: str | None = None
+    database_url: Optional[str] = None
     
     # Database Connection Settings
     db_echo: bool = False

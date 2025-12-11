@@ -92,10 +92,10 @@ def main():
     
     # Run all tests
     all_passed = True
-    all_passed &= test_database_url(settings)
-    all_passed &= test_cors_config(settings)
-    all_passed &= test_fastapi_config(settings)
-    all_passed &= test_database_connection()
+    all_passed = all_passed and test_database_url(settings)
+    all_passed = all_passed and test_cors_config(settings)
+    all_passed = all_passed and test_fastapi_config(settings)
+    all_passed = all_passed and test_database_connection()
     
     print("\n" + "=" * 70)
     if all_passed:
