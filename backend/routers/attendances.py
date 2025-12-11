@@ -197,11 +197,8 @@ def verify_attendance(
     )
     db.add(credit_ledger_entry)
     
-    # Update volunteer profile
-    profile = db.query(ProfileModel).filter(ProfileModel.volunteer_id == attendance.volunteer_id).first()
-    if profile:
-        profile.total_hours = profile.total_hours + Decimal(str(hours_worked))
-        profile.total_credits_earned = profile.total_credits_earned + Decimal(str(credit_amount))
+    # Note: Profile totals are automatically updated by database triggers
+    # when volo_credits and attendances are modified
     
     db.commit()
     db.refresh(attendance)

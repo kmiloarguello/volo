@@ -101,10 +101,8 @@ def create_allocation(
         if float(total_allocated) >= float(credit.amount):
             credit.status = "Allocated"
     
-    # Update volunteer profile
-    profile = db.query(ProfileModel).filter(ProfileModel.volunteer_id == allocation.volunteer_id).first()
-    if profile:
-        profile.total_credits_allocated = profile.total_credits_allocated + Decimal(str(allocation.amount))
+    # Note: Profile totals are automatically updated by database triggers
+    # when allocations are created or modified
     
     db.commit()
     db.refresh(db_allocation)
