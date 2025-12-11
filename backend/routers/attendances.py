@@ -132,7 +132,7 @@ def check_out(attendance_id: UUID, db: Session = Depends(get_db)):
 @router.post("/{attendance_id}/verify")
 def verify_attendance(
     attendance_id: UUID,
-    verified_by_user_id: UUID,
+    request_data: dict,
     db: Session = Depends(get_db)
 ):
     attendance = db.query(AttendanceModel).filter(AttendanceModel.id == attendance_id).first()
@@ -141,6 +141,10 @@ def verify_attendance(
     
     if attendance.check_in_at is None or attendance.check_out_at is None:
         raise HTTPException(status_code=400, detail="Attendance must have both check-in and check-out times")
+    
+    verified_by_user_id = request_data.get('verified_by_user_id')
+    if not verified_by_user_id:
+        raise HTTPException(status_code=400, detail="verified_by_user_id is required")
     
     attendance.status = "Verified"
     attendance.verified_by_user_id = verified_by_user_id

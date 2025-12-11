@@ -49,7 +49,7 @@ class Organization(Base):
     __tablename__ = "organizations"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    type = Column(Enum(OrganizationType), nullable=False)
+    type = Column(Enum(OrganizationType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     name = Column(String(200), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -129,7 +129,7 @@ class Activity(Base):
     ends_at = Column(DateTime(timezone=True), nullable=False)
     location = Column(String(255))
     capacity = Column(Integer, CheckConstraint('capacity > 0'))
-    status = Column(Enum(ActivityStatus), default=ActivityStatus.SCHEDULED)
+    status = Column(Enum(ActivityStatus, values_callable=lambda obj: [e.value for e in obj]), default=ActivityStatus.SCHEDULED)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -150,7 +150,7 @@ class Attendance(Base):
     check_in_at = Column(DateTime(timezone=True))
     check_out_at = Column(DateTime(timezone=True))
     verified_by_user_id = Column(UUID(as_uuid=True))  # NGO/NBE representative
-    status = Column(Enum(AttendanceStatus), default=AttendanceStatus.PENDING)
+    status = Column(Enum(AttendanceStatus, values_callable=lambda obj: [e.value for e in obj]), default=AttendanceStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -170,7 +170,7 @@ class VoloCredit(Base):
     volunteer_id = Column(UUID(as_uuid=True), ForeignKey("volunteers.id"), nullable=False)
     source_attendance_id = Column(UUID(as_uuid=True), ForeignKey("attendances.id"))
     amount = Column(DECIMAL(10,2), nullable=False)
-    status = Column(Enum(CreditStatus), default=CreditStatus.AVAILABLE)
+    status = Column(Enum(CreditStatus, values_callable=lambda obj: [e.value for e in obj]), default=CreditStatus.AVAILABLE)
     granted_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -204,7 +204,7 @@ class Allocation(Base):
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))
     source_credit_id = Column(UUID(as_uuid=True), ForeignKey("volo_credits.id"))
     amount = Column(DECIMAL(10,2), nullable=False)
-    kind = Column(Enum(AllocationKind), nullable=False)
+    kind = Column(Enum(AllocationKind, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

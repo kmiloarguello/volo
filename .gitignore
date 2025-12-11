@@ -104,3 +104,5 @@ alembic.ini
 
 # FastAPI / Uvicorn
 .pytest_cache/
+
+Private&Shared/
