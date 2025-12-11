@@ -2,6 +2,10 @@
 
 A comprehensive volunteer management system with credit allocation, built with PostgreSQL, Docker, and FastAPI.
 
+> **🐳 Docker-First Project**: This project runs entirely in Docker. No need to install Python, PostgreSQL, or any dependencies locally!
+> 
+> Quick start: `docker compose up -d` (see [Docker Quick Reference Guide](DOCKER_GUIDE.md) for more commands)
+
 ## Overview
 
 Volo is a volunteer engagement platform that tracks volunteer activities, grants credits for verified participation, and allows volunteers to allocate credits to projects they care about. The system implements a 50/50 allocation rule where volunteers must allocate 50% of their credits to the project they worked on (mandatory) and can freely allocate the remaining 50% to any project in their region.
@@ -41,7 +45,10 @@ Volo is a volunteer engagement platform that tracks volunteer activities, grants
 
 ### Prerequisites
 
-- Docker and Docker Compose
+**Only Docker is required!** No need to install Python, Node.js, PostgreSQL, or any other dependencies locally.
+
+- Docker (version 20.10 or higher)
+- Docker Compose (version 2.0 or higher)
 - Git (for cloning the repository)
 
 ### 1. Clone and Setup
@@ -52,24 +59,24 @@ cd Volo
 
 # Make sure Docker is running
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ### 2. Start the Services
 
 ```bash
-# Start all services (database, API, and Adminer)
-docker-compose up -d
+# Start all services (database, API, scripts, and admin tools)
+docker compose up -d
 
 # Check service status
-docker-compose ps
+docker compose ps
 ```
 
 ### 3. Verify Setup
 
 ```bash
 # Check database is ready
-docker-compose logs postgres
+docker compose logs postgres
 
 # Check API is running
 curl http://localhost:8000/health
@@ -84,14 +91,20 @@ curl http://localhost:8000/health
 # - Database: volo_db
 ```
 
-### 4. Generate Additional Test Data (Optional)
+### 4. Run Commands Inside Containers
+
+All project commands (tests, scripts, migrations) can be executed inside Docker containers without installing dependencies locally.
 
 ```bash
-# Install Python dependencies for data generator
-pip install faker psycopg2-binary
+# Run test scripts
+docker compose exec scripts python test_basic_api.py
+docker compose exec scripts python test_architecture.py
 
-# Run data generator
-python scripts/generate_test_data.py
+# Access the scripts container shell
+docker compose exec scripts bash
+
+# Run database queries
+docker compose exec postgres psql -U volo_user -d volo_db
 ```
 
 ## API Documentation
@@ -283,6 +296,7 @@ ORDER BY total_amount DESC;
 ```
 Volo/
 ├── docker-compose.yml          # Docker orchestration
+├── .env.example               # Environment variables template
 ├── database/
 │   └── init/                   # Database initialization scripts
 │       ├── 01_schema.sql      # Schema definition
@@ -301,40 +315,77 @@ Volo/
 │       ├── attendances.py
 │       └── allocations.py
 ├── scripts/
-│   └── generate_test_data.py  # Random data generator
+│   ├── Dockerfile             # Scripts container
+│   ├── requirements.txt       # Script dependencies
+│   ├── test_basic_api.py      # Basic API tests
+│   └── test_architecture.py   # Architecture validation tests
 └── README.md                  # This file
 ```
 
 ### Running in Development Mode
 
-#### Database Only
+#### Full Stack with Docker (Recommended)
+
+```bash
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
+
+# Rebuild after code changes
+docker compose up --build
+```
+
+#### Database Only (For Local Development)
 
 ```bash
 # Start only PostgreSQL and Adminer
-docker-compose up postgres adminer
+docker compose up postgres adminer -d
 ```
 
-#### Local FastAPI Development
+#### Running Commands Inside Containers
+
+All development tasks can be performed inside containers:
 
 ```bash
-# Install dependencies
-cd backend
-pip install -r requirements.txt
+# Run tests
+docker compose exec scripts python test_basic_api.py
+docker compose exec scripts python test_architecture.py
 
-# Set environment variables
-export DATABASE_URL="postgresql://volo_user:volo_password@localhost:5432/volo_db"
+# Access backend container shell
+docker compose exec fastapi bash
 
-# Run FastAPI with auto-reload
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# Access scripts container shell
+docker compose exec scripts bash
+
+# View backend logs
+docker compose logs -f fastapi
+
+# Restart a service
+docker compose restart fastapi
 ```
 
 ### Testing
 
-#### Run Tests (When Available)
+#### Run Architecture Tests
 
 ```bash
-cd backend
-pytest
+# Run basic API tests
+docker compose exec scripts python test_basic_api.py
+
+# Run full architecture tests
+docker compose exec scripts python test_architecture.py
+```
+
+#### Run Backend Tests (When Available)
+
+```bash
+# Run pytest inside the backend container
+docker compose exec fastapi pytest
 ```
 
 #### Manual Testing with curl
@@ -379,20 +430,20 @@ curl http://localhost:8000/api/v1/volunteers/
 
 ```bash
 # Check if PostgreSQL is running
-docker-compose logs postgres
+docker compose logs postgres
 
 # Restart database service
-docker-compose restart postgres
+docker compose restart postgres
 ```
 
 #### API Not Responding
 
 ```bash
 # Check FastAPI logs
-docker-compose logs fastapi
+docker compose logs fastapi
 
 # Rebuild and restart API
-docker-compose up --build fastapi
+docker compose up --build fastapi
 ```
 
 #### Port Conflicts
@@ -402,6 +453,7 @@ docker-compose up --build fastapi
 lsof -i :5432  # PostgreSQL
 lsof -i :8000  # FastAPI
 lsof -i :8080  # Adminer
+lsof -i :5050  # PgAdmin
 
 # Stop conflicting services or change ports in docker-compose.yml
 ```
@@ -410,13 +462,13 @@ lsof -i :8080  # Adminer
 
 ```bash
 # Stop all services and remove volumes
-docker-compose down -v
+docker compose down -v
 
 # Remove images (optional)
-docker-compose down --rmi all
+docker compose down --rmi all
 
 # Start fresh
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Contributing

@@ -1,4 +1,4 @@
-# Backend Dockerfile for FastAPI
+# Scripts Dockerfile for running test and data generation scripts
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (for better caching)
+# Copy requirements (same as backend since scripts need similar dependencies)
 COPY requirements.txt .
 
 # Install Python dependencies
@@ -17,11 +17,8 @@ COPY requirements.txt .
 # For production, remove these flags and ensure proper SSL certificates are configured.
 RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
-# Copy application code
+# Copy scripts
 COPY . .
 
-# Expose port
-EXPOSE 8000
-
-# Command will be overridden in docker-compose.yml
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command (can be overridden)
+CMD ["bash"]
