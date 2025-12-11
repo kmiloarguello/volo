@@ -89,7 +89,7 @@ services:
       fastapi:
         condition: service_started
     # Keep container running so we can exec into it
-    command: tail -f /dev/null
+    command: sleep infinity
 
 volumes:
   postgres_data:
