@@ -64,16 +64,16 @@ class ArchitectureTestSuite:
         """Setup the test scenario data using existing data"""
         print("\n🔧 Setting up test environment...")
         
-        # Get existing Île-de-France region
+        # Get existing region (use first available region)
         response = self.api_request('GET', '/api/v1/regions/')
         if response and response.status_code == 200:
             regions = response.json()
-            ile_de_france = next((r for r in regions if r['name'] == 'Île-de-France'), None)
-            if ile_de_france:
-                self.test_data['region_id'] = ile_de_france['id']
-                print("✅ Using existing region: Île-de-France")
+            if regions:
+                region = regions[0]  # Use first available region
+                self.test_data['region_id'] = region['id']
+                print(f"✅ Using existing region: {region['name']}")
             else:
-                print("❌ Île-de-France region not found")
+                print("❌ No regions found in database")
                 return False
         else:
             print("❌ Failed to get regions")

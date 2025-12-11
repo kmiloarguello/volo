@@ -329,3 +329,47 @@ class AttendancesResponse(BaseModel):
     total: int
     page: int
     per_page: int
+
+# Company Partnership schemas
+class CompanyPartnershipBase(BaseModel):
+    company_id: UUID
+    organization_id: UUID
+    partnership_type: str = "FUNDING"
+    budget_committed: Optional[Decimal] = None
+    active_from: datetime
+    active_to: Optional[datetime] = None
+    description: Optional[str] = None
+
+class CompanyPartnershipCreate(CompanyPartnershipBase):
+    pass
+
+class CompanyPartnershipUpdate(BaseModel):
+    partnership_type: Optional[str] = None
+    budget_committed: Optional[Decimal] = None
+    budget_allocated: Optional[Decimal] = None
+    active_from: Optional[datetime] = None
+    active_to: Optional[datetime] = None
+    description: Optional[str] = None
+
+class CompanyPartnership(CompanyPartnershipBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    budget_allocated: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+class CompanyPartnershipUtilization(BaseModel):
+    partnership_id: UUID
+    company_name: str
+    organization_name: str
+    partnership_type: str
+    budget_committed: Optional[Decimal]
+    budget_allocated: Decimal
+    budget_remaining: Optional[Decimal]
+    utilization_percentage: Optional[Decimal]
+    active_from: datetime
+    active_to: Optional[datetime]
+    status: str
+    total_allocations: int
+    projects_funded: int

@@ -142,13 +142,22 @@ CREATE TABLE credit_exchanges (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ledger Company NGO (relationships)
-CREATE TABLE ledger_company_ngo (
+-- Company Partnerships (targeted funding relationships)
+CREATE TABLE company_partnerships (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id),
     organization_id UUID NOT NULL REFERENCES organizations(id),
+    partnership_type VARCHAR(50) DEFAULT 'FUNDING', -- FUNDING, SPONSORSHIP, STRATEGIC
+    budget_committed DECIMAL(12,2), -- €50,000 - total committed budget
+    budget_allocated DECIMAL(12,2) DEFAULT 0.00, -- Track utilization
+    active_from DATE NOT NULL DEFAULT CURRENT_DATE,
+    active_to DATE, -- NULL means indefinite
+    description TEXT, -- Partnership details and objectives
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(company_id, organization_id)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(company_id, organization_id),
+    CONSTRAINT valid_budget CHECK (budget_allocated <= budget_committed),
+    CONSTRAINT valid_partnership_duration CHECK (active_to IS NULL OR active_to >= active_from)
 );
 
 -- Ledger Entries (immutable audit trail)
@@ -191,6 +200,9 @@ CREATE INDEX idx_ledger_entries_ref_type ON ledger_entries(ref_type);
 CREATE INDEX idx_ledger_entries_ref_id ON ledger_entries(ref_id);
 CREATE INDEX idx_notifications_volunteer_id ON notifications(volunteer_id);
 CREATE INDEX idx_notifications_read ON notifications(read);
+CREATE INDEX idx_company_partnerships_company_id ON company_partnerships(company_id);
+CREATE INDEX idx_company_partnerships_organization_id ON company_partnerships(organization_id);
+CREATE INDEX idx_company_partnerships_active ON company_partnerships(active_from, active_to);
 
 -- ===== TRIGGERS =====
 
@@ -213,6 +225,7 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW
 CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_attendances_updated_at BEFORE UPDATE ON attendances FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_brand_messages_updated_at BEFORE UPDATE ON brand_messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_company_partnerships_updated_at BEFORE UPDATE ON company_partnerships FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Automatically create profile for new volunteers
 CREATE OR REPLACE FUNCTION create_volunteer_profile()
@@ -267,3 +280,32 @@ JOIN regions r ON p.region_id = r.id
 LEFT JOIN attendances att ON act.id = att.activity_id
 GROUP BY act.id, act.starts_at, act.ends_at, act.location, act.capacity, act.status, 
          p.name, o.name, r.name;
+
+-- Partnership utilization view
+CREATE VIEW partnership_utilization AS
+SELECT 
+    cp.id as partnership_id,
+    c.name as company_name,
+    o.name as organization_name,
+    cp.partnership_type,
+    cp.budget_committed,
+    cp.budget_allocated,
+    (cp.budget_committed - cp.budget_allocated) as budget_remaining,
+    ROUND((cp.budget_allocated / NULLIF(cp.budget_committed, 0)) * 100, 2) as utilization_percentage,
+    cp.active_from,
+    cp.active_to,
+    CASE 
+        WHEN cp.active_to IS NULL THEN 'ACTIVE'
+        WHEN cp.active_to < CURRENT_DATE THEN 'EXPIRED'
+        WHEN cp.active_from > CURRENT_DATE THEN 'FUTURE'
+        ELSE 'ACTIVE'
+    END as status,
+    COUNT(DISTINCT a.id) as total_allocations,
+    COUNT(DISTINCT p.id) as projects_funded
+FROM company_partnerships cp
+JOIN companies c ON cp.company_id = c.id
+JOIN organizations o ON cp.organization_id = o.id
+LEFT JOIN projects p ON o.id = p.ngo_id
+LEFT JOIN allocations a ON p.id = a.project_id AND a.company_id = c.id
+GROUP BY cp.id, c.name, o.name, cp.partnership_type, cp.budget_committed, 
+         cp.budget_allocated, cp.active_from, cp.active_to;

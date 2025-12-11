@@ -56,7 +56,7 @@ class Organization(Base):
     
     # Relationships
     projects = relationship("Project", back_populates="ngo")
-    ledger_relationships = relationship("LedgerCompanyNGO", back_populates="organization")
+    partnerships = relationship("CompanyPartnership", back_populates="organization")
 
 class Company(Base):
     __tablename__ = "companies"
@@ -69,7 +69,7 @@ class Company(Base):
     # Relationships
     brand_messages = relationship("BrandMessage", back_populates="company")
     allocations = relationship("Allocation", back_populates="company")
-    ledger_relationships = relationship("LedgerCompanyNGO", back_populates="company")
+    partnerships = relationship("CompanyPartnership", back_populates="company")
 
 class Volunteer(Base):
     __tablename__ = "volunteers"
@@ -226,17 +226,30 @@ class CreditExchange(Base):
     allocation = relationship("Allocation", back_populates="credit_exchanges")
     project = relationship("Project", back_populates="credit_exchanges")
 
-class LedgerCompanyNGO(Base):
-    __tablename__ = "ledger_company_ngo"
+class CompanyPartnership(Base):
+    __tablename__ = "company_partnerships"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    partnership_type = Column(String(50), nullable=False, default="FUNDING")
+    budget_committed = Column(DECIMAL(12, 2))
+    budget_allocated = Column(DECIMAL(12, 2), default=0.00)
+    active_from = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    active_to = Column(DateTime(timezone=True))
+    description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint('budget_allocated <= budget_committed', name='valid_budget'),
+        CheckConstraint('active_to IS NULL OR active_to >= active_from', name='valid_partnership_duration'),
+    )
     
     # Relationships
-    company = relationship("Company", back_populates="ledger_relationships")
-    organization = relationship("Organization", back_populates="ledger_relationships")
+    company = relationship("Company", back_populates="partnerships")
+    organization = relationship("Organization", back_populates="partnerships")
 
 class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
