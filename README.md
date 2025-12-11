@@ -50,10 +50,18 @@ Volo is a volunteer engagement platform that tracks volunteer activities, grants
 git clone <repository-url>
 cd Volo
 
+# Copy environment variables template
+cp .env.example .env
+
+# (Optional) Edit .env to customize configuration
+nano .env
+
 # Make sure Docker is running
 docker --version
 docker-compose --version
 ```
+
+> **Note**: All configuration is managed through the `.env` file. See [ENV_CONFIG.md](ENV_CONFIG.md) for detailed documentation on all available environment variables.
 
 ### 2. Start the Services
 
@@ -76,12 +84,12 @@ curl http://localhost:8000/health
 
 # Access Adminer (Database GUI)
 # Open: http://localhost:8080
-# Login with:
+# Login with credentials from .env file (default):
 # - System: PostgreSQL
 # - Server: postgres
-# - Username: volo_user
-# - Password: volo_password
-# - Database: volo_db
+# - Username: volo_user (from POSTGRES_USER)
+# - Password: volo_password (from POSTGRES_PASSWORD)
+# - Database: volo_db (from POSTGRES_DB)
 ```
 
 ### 4. Generate Additional Test Data (Optional)
@@ -93,6 +101,46 @@ pip install faker psycopg2-binary
 # Run data generator
 python scripts/generate_test_data.py
 ```
+
+## Configuration
+
+All application settings are managed through environment variables defined in the `.env` file at the project root.
+
+### Environment Variables
+
+The project uses a comprehensive set of environment variables for all configuration:
+
+- **Database**: PostgreSQL connection settings (host, port, user, password, database name)
+- **PgAdmin**: Admin interface credentials and port
+- **Adminer**: Database management tool port
+- **FastAPI**: Server host, port, and reload settings
+- **CORS**: Allowed origins for cross-origin requests
+- **Logging**: Database query logging settings
+
+For a complete reference of all available environment variables and their usage, see [ENV_CONFIG.md](ENV_CONFIG.md).
+
+### Quick Configuration Changes
+
+To customize your setup:
+
+1. Edit the `.env` file:
+   ```bash
+   nano .env
+   ```
+
+2. Modify the desired values (e.g., change ports, passwords)
+
+3. Restart the services:
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+### Security Notes
+
+- The `.env` file is gitignored and should never be committed
+- For production, use strong passwords and restrict CORS origins
+- See [ENV_CONFIG.md](ENV_CONFIG.md) for security best practices
 
 ## API Documentation
 

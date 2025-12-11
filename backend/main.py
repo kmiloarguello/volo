@@ -5,6 +5,7 @@ from database.connection import get_db
 from routers import volunteers, activities, organizations, projects, attendances, allocations, regions, companies, partnerships, project_fundings
 from database.models import Base
 from database.connection import engine
+from config import settings
 import uvicorn
 
 # Create database tables
@@ -19,7 +20,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=settings.get_cors_origins_list(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,4 +53,9 @@ async def health_check(db: Session = Depends(get_db)):
         raise HTTPException(status_code=503, detail=f"Database connection failed: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app", 
+        host=settings.fastapi_host, 
+        port=settings.fastapi_port, 
+        reload=settings.fastapi_reload
+    )
