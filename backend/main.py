@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from routers import volunteers, activities, organizations, projects, attendances, allocations, regions, companies, partnerships
+from routers import volunteers, activities, organizations, projects, attendances, allocations, regions, companies, partnerships, project_fundings
 from database.models import Base
 from database.connection import engine
 import uvicorn
@@ -35,6 +35,7 @@ app.include_router(allocations.router, prefix="/api/v1/allocations", tags=["allo
 app.include_router(regions.router, prefix="/api/v1/regions", tags=["regions"])
 app.include_router(companies.router, prefix="/api/v1/companies", tags=["companies"])
 app.include_router(partnerships.router, prefix="/api/v1/partnerships", tags=["partnerships"])
+app.include_router(project_fundings.router, prefix="/api/v1/project-fundings", tags=["project-fundings"])
 
 @app.get("/")
 async def root():

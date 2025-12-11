@@ -21,6 +21,36 @@ def create_allocation(
     allocation: AllocationCreate,
     db: Session = Depends(get_db)
 ):
+    # Validate company has pre-approved funding for this project
+    if allocation.company_id:
+        from database.models import ProjectCompanyFunding as ProjectCompanyFundingModel
+        
+        funding = db.query(ProjectCompanyFundingModel).filter(
+            ProjectCompanyFundingModel.project_id == allocation.project_id,
+            ProjectCompanyFundingModel.company_id == allocation.company_id,
+            ProjectCompanyFundingModel.status == "ACTIVE"
+        ).first()
+        
+        if not funding:
+            raise HTTPException(
+                status_code=400, 
+                detail="Company has not pre-approved funding for this project. Project funding approval required."
+            )
+        
+        # Check if allocation would exceed company's approved budget for this project
+        current_allocated = db.query(func.sum(AllocationModel.amount)).filter(
+            AllocationModel.project_id == allocation.project_id,
+            AllocationModel.company_id == allocation.company_id
+        ).scalar() or 0
+        
+        budget_remaining = funding.max_budget - funding.allocated_budget
+        
+        if allocation.amount > budget_remaining:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Allocation would exceed company's approved budget for this project. Available: €{budget_remaining}, Requested: €{allocation.amount}"
+            )
+
     # Validate that the credit exists and has sufficient balance
     if allocation.source_credit_id:
         credit = db.query(VoloCreditModel).filter(VoloCreditModel.id == allocation.source_credit_id).first()
@@ -46,6 +76,11 @@ def create_allocation(
     db_allocation = AllocationModel(**allocation.model_dump())
     db.add(db_allocation)
     db.flush()  # Flush to get the allocation ID
+    
+    # Update company funding allocated budget
+    if allocation.company_id:
+        funding.allocated_budget += allocation.amount
+        db.flush()
     
     # Create ledger entry for allocation
     ledger_entry = LedgerEntryModel(

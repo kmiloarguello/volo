@@ -70,6 +70,7 @@ class Company(Base):
     brand_messages = relationship("BrandMessage", back_populates="company")
     allocations = relationship("Allocation", back_populates="company")
     partnerships = relationship("CompanyPartnership", back_populates="company")
+    project_fundings = relationship("ProjectCompanyFunding", back_populates="company")
 
 class Volunteer(Base):
     __tablename__ = "volunteers"
@@ -119,6 +120,7 @@ class Project(Base):
     activities = relationship("Activity", back_populates="project")
     allocations = relationship("Allocation", back_populates="project")
     credit_exchanges = relationship("CreditExchange", back_populates="project")
+    company_fundings = relationship("ProjectCompanyFunding", back_populates="project")
 
 class Activity(Base):
     __tablename__ = "activities"
@@ -250,6 +252,31 @@ class CompanyPartnership(Base):
     # Relationships
     company = relationship("Company", back_populates="partnerships")
     organization = relationship("Organization", back_populates="partnerships")
+
+class ProjectCompanyFunding(Base):
+    __tablename__ = "project_company_fundings"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+    max_budget = Column(DECIMAL(12, 2), nullable=False)
+    allocated_budget = Column(DECIMAL(12, 2), default=0.00)
+    status = Column(String(20), default="ACTIVE")
+    approved_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_by = Column(String(100))
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint('allocated_budget <= max_budget', name='valid_funding_budget'),
+        CheckConstraint('max_budget > 0', name='positive_max_budget'),
+    )
+    
+    # Relationships
+    project = relationship("Project", back_populates="company_fundings")
+    company = relationship("Company", back_populates="project_fundings")
 
 class LedgerEntry(Base):
     __tablename__ = "ledger_entries"

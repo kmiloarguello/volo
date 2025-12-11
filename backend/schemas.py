@@ -373,3 +373,30 @@ class CompanyPartnershipUtilization(BaseModel):
     status: str
     total_allocations: int
     projects_funded: int
+
+# Project Company Funding schemas
+class ProjectCompanyFundingBase(BaseModel):
+    project_id: UUID
+    company_id: UUID
+    max_budget: Decimal
+    approved_by: Optional[str] = None
+    notes: Optional[str] = None
+
+class ProjectCompanyFundingCreate(ProjectCompanyFundingBase):
+    pass
+
+class ProjectCompanyFundingUpdate(BaseModel):
+    max_budget: Optional[Decimal] = None
+    status: Optional[str] = None
+    approved_by: Optional[str] = None
+    notes: Optional[str] = None
+
+class ProjectCompanyFunding(ProjectCompanyFundingBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    allocated_budget: Decimal
+    status: str
+    approved_at: datetime
+    created_at: datetime
+    updated_at: datetime
